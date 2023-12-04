@@ -41,13 +41,13 @@ let fitsLimit red green blue game =
 let result1 = File.ReadAllLines "FSharp/02-cube-conundrum-input.txt"
               |> Array.map parseGame
               |> Array.filter (fitsLimit 12 13 14)
-              |> Array.map (fun game -> game.Id)
-            //   |> Arra
-            //   |> Array.sumBy (fun game -> game.Id)
+              |> Array.sumBy (fun game -> game.Id)
 
-Array.get
-    (File.ReadAllLines "FSharp/02-cube-conundrum-input.txt"
-    |> Array.map parseGame)
-    3
+let getPowerOfFewest game =
+    (game.Sets |> List.map (fun s -> s.Red) |> List.max) *
+    (game.Sets |> List.map (fun s -> s.Blue) |> List.max) *
+    (game.Sets |> List.map (fun s -> s.Green) |> List.max)
 
-
+let result2 = File.ReadAllLines "FSharp/02-cube-conundrum-input.txt"
+              |> Array.map parseGame
+              |> Array.sumBy getPowerOfFewest
