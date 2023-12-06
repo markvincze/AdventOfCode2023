@@ -25,7 +25,7 @@ let parseAlmanac (lines: string list) =
     let seeds = (List.head lines).Split(": ").[1].Split(' ')
                 |> Array.map Int64.Parse
                 |> List.ofArray
-    
+
     let parseRange (line: string) =
         let nums = line.Split ' '
         {
@@ -33,7 +33,7 @@ let parseAlmanac (lines: string list) =
             destinationRangeStart = nums.[0] |> Int64.Parse
             rangeLength = nums.[2] |> Int64.Parse
         }
-    
+
     let rec parseConversions (lines: string list) acc =
         match lines with
         | [] -> acc |> List.rev
@@ -59,3 +59,14 @@ let rec convertAll conversions num =
 let result1 = almanac.seeds
               |> List.map (fun s -> convertAll almanac.conversions s)
               |> List.min
+
+let getAllSeeds seeds =
+    seq {
+        for [ start; length ] in seeds |> List.chunkBySize 2 do
+            yield! seq { start..(start + length - 1L) }
+    }
+
+let result2 = almanac.seeds
+              |> getAllSeeds
+              |> Seq.map (fun s -> convertAll almanac.conversions s)
+              |> Seq.min
