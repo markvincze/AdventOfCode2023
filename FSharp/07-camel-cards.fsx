@@ -40,11 +40,37 @@ let getHandType (hand: Hand) =
 let comparePairwise cs1 cs2 =
     match Seq.zip cs1 cs2 |> Seq.tryFind (fun (x, y) -> x <> y) with
     | Some (x, y) -> compare x y
-    | None -> failwith "There should be no draws"
+    | None -> 0
+
+let upgrade ht cs =
+    let hasJRemaining = cs |> List.contains 0
+    match ht, hasJRemaining with
+    | FiveOfAKind x, _ -> FiveOfAKind x
+    | FourOfAKind 0, _ -> FiveOfAKind 0
+    | FourOfAKind x, true -> FiveOfAKind x
+    | FourOfAKind x, false -> FourOfAKind x
+    | FullHouse (0, x), _ | FullHouse (x, 0), _ -> FiveOfAKind x
+    | FullHouse (x, y), _ -> FullHouse (x, y)
+    | ThreeOfAKind 0, _ -> FourOfAKind 0
+    | ThreeOfAKind x, true -> FourOfAKind x 
+    | ThreeOfAKind x, false -> ThreeOfAKind x 
+    | TwoPair (0, x), _ | TwoPair (x, 0), _ -> FourOfAKind x
+    | TwoPair (x, y), true -> FullHouse (x, y)
+    | TwoPair (x, y), false -> TwoPair (x, y)
+    | OnePair 0, _ -> ThreeOfAKind 0
+    | OnePair x, true -> ThreeOfAKind x 
+    | OnePair x, false -> OnePair x
+    | HighCard 0, _ -> OnePair 0
+    | HighCard x, true -> OnePair x 
+    | HighCard x, false -> HighCard x
 
 let compareHands h1 h2 =
-    let ht1, _ = getHandType h1
-    let ht2, _ = getHandType h2
+    let ht1, cs1 = getHandType h1
+    let ht2, cs2 = getHandType h2
+
+    // Upgrade for part 2
+    let ht1 = upgrade ht1 cs1
+    let ht2 = upgrade ht2 cs2
 
     if getHandTypeScore ht1 < getHandTypeScore ht2 then -1
     else if getHandTypeScore ht1 > getHandTypeScore ht2 then 1
@@ -72,7 +98,7 @@ let parseLine (line: string) =
     let [| hand; bid |] = line.Split ' '
     hand |> Seq.map (fun c -> match c with
                               | 'T' -> 10
-                              | 'J' -> 11
+                              | 'J' -> 0 // Changed in part 2
                               | 'Q' -> 12
                               | 'K' -> 13
                               | 'A' -> 14
@@ -82,8 +108,9 @@ let parseLine (line: string) =
 let hands = File.ReadAllLines "FSharp/07-camel-cards-input.txt"
             |> Array.map parseLine
             |> List.ofArray
-            // |> List.sortWith compareHands
-            // |> List.map getHandType
+
+let handsCount = hands |> List.map fst |> List.length
+let handsDistinctCount = hands |> List.map fst |> List.distinct |> List.length
 
 let result1 = hands
               |> List.sortWith (fun (h1, _) (h2, _) -> compareHands h1 h2)
