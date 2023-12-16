@@ -53,22 +53,32 @@ let step cave ray =
 let stepAllRays cave rays =
     rays |> List.collect (fun r -> step cave r)
 
-let rec progressRays cave rays energized handledRays cnt =
+let rec progressRays cave rays energized handledRays =
     // printfn "Running #%d, ray count: %d, first ray: %A" cnt (List.length rays) (List.head rays)
     let energized = Set.union energized (rays |> List.map (fun r -> r.pos) |> Set.ofList)
     let handledRays = Set.union handledRays (rays |> Set.ofList)
 
-    if cnt <= 0 || (List.isEmpty rays)
+    if (List.isEmpty rays)
     then energized
     else let rays = stepAllRays cave rays
          let rays = List.except (Set.toList handledRays) rays
         //  printfn "Energized count: %d" (Set.count energized)
 
-         progressRays cave rays energized handledRays (cnt - 1)
+         progressRays cave rays energized handledRays
 
-let energized = progressRays cave [ { pos = (-1, 0); dir = Right } ] Set.empty<int * int> Set.empty<Ray> 10000
+let energized = progressRays cave [ { pos = (-1, 0); dir = Right } ] Set.empty<int * int> Set.empty<Ray>
 
 let result1 = (Set.count energized) - 1
 
 // Part 2
-let calculateEnergized
+let result2 =
+    seq {
+        for x in 0..(Array2D.length1 cave) - 1 do
+            yield { pos = (x, -1); dir = Down }
+            yield { pos = (x, (Array2D.length2 cave)); dir = Up }
+        for y in 0..(Array2D.length2 cave) - 1 do
+            yield { pos = (-1, y); dir = Right }
+            yield { pos = ((Array2D.length1 cave), y); dir = Left }
+    }
+    |> Seq.map (fun ray -> (progressRays cave [ ray ] Set.empty<int * int> Set.empty<Ray> |> Set.count) - 1)
+    |> Seq.max
