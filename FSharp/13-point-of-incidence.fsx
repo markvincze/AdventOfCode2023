@@ -16,7 +16,7 @@ let parse (lines: string list) index =
                   |> List.map (fun x -> [0..(List.length lines - 1)] |> List.map (fun y -> lines.[y].[x]) |> String.Concat)
                   |> List.map (fun l -> l.Replace('#', '1').Replace('.', '0'))
                   |> List.map (fun l -> Convert.ToInt32(l, 2))
-    
+
     {
         index = index
         rows = rows |> Array.ofList
@@ -26,29 +26,17 @@ let parse (lines: string list) index =
 let ls = File.ReadAllLines "FSharp/13-point-of-incidence-input.txt"
          |> Array.takeWhile(fun l -> l <> "")
 
-let areRowsMirroredAt y rows = 
-    if y < 0 || y >= Array.length rows - 1
+let areMirroredAt i items =
+    if i < 0 || i >= Array.length items - 1
     then false
-    else let rec areRowsMirroredAt y1 y2 rows =
-             if y1 < 0 || y2 > (Array.length rows - 1)
+    else let rec areMirroredAt i1 i2 items =
+             if i1 < 0 || i2 > (Array.length items - 1)
              then true
-             else if rows.[y1] <> rows.[y2]
+             else if items.[i1] <> items.[i2]
              then false
-             else areRowsMirroredAt (y1 - 1) (y2 + 1) rows
-         
-         areRowsMirroredAt y (y + 1) rows
+             else areMirroredAt (i1 - 1) (i2 + 1) items
 
-let areColumnsMirroredAt x columns = 
-    if x < 0 || x >= Array.length columns - 1
-    then false
-    else let rec areColumnsMirroredAt x1 x2 columns =
-             if x1 < 0 || x2 > (Array.length columns - 1)
-             then true
-             else if columns.[x1] <> columns.[x2]
-             then false
-             else areColumnsMirroredAt (x1 - 1) (x2 + 1) columns
-         
-         areColumnsMirroredAt x (x + 1) columns
+         areMirroredAt i (i + 1) items
 
 let parsePatterns lines =
     let rec parsePatterns lines acc =
@@ -56,7 +44,7 @@ let parsePatterns lines =
         if List.length lines > List.length ls
         then parsePatterns (List.skip (List.length ls + 1) lines) (parse ls (List.length acc) :: acc)
         else (parse ls (List.length acc) :: acc) |> List.rev
-    
+
     parsePatterns lines []
 
 let patterns = File.ReadAllLines "FSharp/13-point-of-incidence-input.txt"
@@ -66,12 +54,12 @@ let patterns = File.ReadAllLines "FSharp/13-point-of-incidence-input.txt"
 let findReflection pattern =
     printfn "Finding reflection for pattern #%d" pattern.index
     let rm = [0..(Array.length pattern.rows - 1)]
-             |> List.tryFind (fun y -> areRowsMirroredAt y pattern.rows)
- 
+             |> List.tryFind (fun y -> areMirroredAt y pattern.rows)
+
     match rm with
     | Some rm -> rm, true
     | None -> let cm = [0..(Array.length pattern.columns - 1)]
-                       |> List.find (fun x -> areColumnsMirroredAt x pattern.columns)
+                       |> List.find (fun x -> areMirroredAt x pattern.columns)
               cm, false
 
 let reflectionScore (i, isRow) =
@@ -82,3 +70,43 @@ let reflectionScore (i, isRow) =
 let rs = patterns |> List.map findReflection
 
 let result1 = rs |> List.map reflectionScore |> List.sum
+
+// Part 2
+let bitsSet i =
+    let rec bitsSet i cnt =
+        if i = 0
+        then cnt
+        else bitsSet (i >>> 1) (cnt + (i &&& 1))
+    
+    bitsSet i 0
+
+let areMirroredAt2 i items =
+    if i < 0 || i >= Array.length items - 1
+    then false
+    else let rec areMirroredAt2 i1 i2 items foundDiff =
+             if i1 < 0 || i2 > (Array.length items - 1)
+             then foundDiff
+             else if items.[i1] = items.[i2]
+             then areMirroredAt2 (i1 - 1) (i2 + 1) items foundDiff
+             else if foundDiff
+             then false
+             else if items.[i1] ^^^ items.[i2] |> bitsSet = 1
+             then areMirroredAt2 (i1 - 1) (i2 + 1) items true
+             else false
+
+         areMirroredAt2 i (i + 1) items false
+
+let findReflection2 pattern =
+    printfn "Finding reflection for pattern #%d" pattern.index
+    let rm = [0..(Array.length pattern.rows - 1)]
+             |> List.tryFind (fun y -> areMirroredAt2 y pattern.rows)
+
+    match rm with
+    | Some rm -> rm, true
+    | None -> let cm = [0..(Array.length pattern.columns - 1)]
+                       |> List.find (fun x -> areMirroredAt2 x pattern.columns)
+              cm, false
+
+let rs2 = patterns |> List.map findReflection2
+
+let result2 = rs2 |> List.map reflectionScore |> List.sum
