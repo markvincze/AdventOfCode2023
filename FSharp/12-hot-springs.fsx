@@ -64,36 +64,44 @@ let possibleArrangements line =
     |> Seq.length
 
 
-let rec possibleArrangements2 (line: string) currentPos damagedGroups =
-    match damagedGroups with
-    | [] -> 1
-    | h :: t -> if currentPos >= line.Length
-                then 0
-                else match seq { currentPos..(line.Length - 1) } |> Seq.tryFind (fun i -> line.[i] <> '.') with
-                     | None -> 0
-                     | Some firstNonOperationalPos ->
-                        match line.[firstNonOperationalPos] with
-                        | '#' -> if firstNonOperationalPos + h - 1 >= line.Length
-                                 then 0
-                                 else if seq { firstNonOperationalPos..(firstNonOperationalPos + h - 1) } |> Seq.forall (fun i -> line.[i] <> '.') &&
-                                         (firstNonOperationalPos + h >= line.Length || line.[firstNonOperationalPos + h] <> '#')
-                                 then possibleArrangements2 line (firstNonOperationalPos + h + 1) t
-                                 else 0
-                        | '?' -> if firstNonOperationalPos + h - 1 >= line.Length
-                                 then 0
-                                 else let fromNextPos = possibleArrangements2 line (firstNonOperationalPos + 1) damagedGroups
-                                      if seq { firstNonOperationalPos..(firstNonOperationalPos + h - 1) } |> Seq.forall (fun i -> line.[i] <> '.') &&
-                                         (firstNonOperationalPos + h >= line.Length || line.[firstNonOperationalPos + h] <> '#')
-                                      then fromNextPos + (possibleArrangements2 line (firstNonOperationalPos + h + 1) t)
-                                      else fromNextPos
-                        | _ -> failwith "Invalid state"
+let rec possibleArrangements2 (line: string) currentPos damagedGroups cache =
+    let withCache result cache currentPos damagedGroups =
+        result, (Map.add (currentPos, (List.length damagedGroups)) result cache)
 
-// let results = lines
-//               |> List.map possibleArrangements
+    match cache |> Map.tryFind (currentPos, (List.length damagedGroups)) with
+    | Some result -> result, cache
+    | None ->
+        match damagedGroups with
+        | [] -> let res = if seq { currentPos..(line.Length - 1) } |> Seq.forall (fun i -> line.[i] <> '#') then 1L else 0L
+                withCache res cache currentPos damagedGroups
+        | h :: t -> if currentPos >= line.Length
+                    then withCache 0L cache currentPos damagedGroups
+                    else match seq { currentPos..(line.Length - 1) } |> Seq.tryFind (fun i -> line.[i] <> '.') with
+                         | None -> withCache 0L cache currentPos damagedGroups
+                         | Some firstNonOperationalPos ->
+                             match line.[firstNonOperationalPos] with
+                             | '#' -> if firstNonOperationalPos + h - 1 >= line.Length
+                                      then withCache 0L cache currentPos damagedGroups
+                                      else if seq { firstNonOperationalPos..(firstNonOperationalPos + h - 1) } |> Seq.forall (fun i -> line.[i] <> '.') &&
+                                              (firstNonOperationalPos + h >= line.Length || line.[firstNonOperationalPos + h] <> '#')
+                                      then possibleArrangements2 line (firstNonOperationalPos + h + 1) t cache
+                                      else withCache 0L cache currentPos damagedGroups
+                             | '?' -> if firstNonOperationalPos + h - 1 >= line.Length
+                                      then withCache 0L cache currentPos damagedGroups
+                                      else let fromNextPos, cache = possibleArrangements2 line (firstNonOperationalPos + 1) damagedGroups cache
+                                           if seq { firstNonOperationalPos..(firstNonOperationalPos + h - 1) } |> Seq.forall (fun i -> line.[i] <> '.') &&
+                                              (firstNonOperationalPos + h >= line.Length || line.[firstNonOperationalPos + h] <> '#')
+                                           then let fromAfterGroup, cache = possibleArrangements2 line (firstNonOperationalPos + h + 1) t cache
+                                                withCache (fromNextPos + fromAfterGroup) cache currentPos damagedGroups
+                                           else withCache fromNextPos cache currentPos damagedGroups
+                             | _ -> failwith "Invalid state"
+
 let results = lines
-              |> List.map (fun l -> possibleArrangements2 l.line 0 l.damagedGroups)
+              |> List.map (fun l -> possibleArrangements2 l.line 0 l.damagedGroups Map.empty<int * int, int64>)
 
-let result1 = results |> List.sum
+let result1 = results |> List.map fst |> List.sum
+
+printfn "Part 1: %d" result1
 
 let lines2 = lines
              |> List.map (fun line -> 
@@ -105,10 +113,8 @@ let lines2 = lines
                 })
 
 let results2 = lines2
-               |> List.map (fun l -> possibleArrangements2 l.line 0 l.damagedGroups)
+               |> List.map (fun l -> possibleArrangements2 l.line 0 l.damagedGroups Map.empty<int * int, int64>)
 
-let result2 = results2 |> List.sum
+let result2 = results2 |> List.map fst |> List.sum
 
-// ?#?#?#?#?#?#?#? 1,3,1,6 - 1 arrangement
-
-// let rs = lines |> List.map (fun l -> possibleArrangements2 l.line 0 l.damagedGroups)
+printfn "Part 2: %d" result2
