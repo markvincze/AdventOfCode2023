@@ -63,8 +63,35 @@ let possibleArrangements line =
     |> Seq.filter (fun extraDamagedPositions -> getDamagedGroups line.line extraDamagedPositions = line.damagedGroups)
     |> Seq.length
 
+
+let rec possibleArrangements2 (line: string) currentPos damagedGroups =
+    match damagedGroups with
+    | [] -> 1
+    | h :: t -> if currentPos >= line.Length
+                then 0
+                else match seq { currentPos..(line.Length - 1) } |> Seq.tryFind (fun i -> line.[i] <> '.') with
+                     | None -> 0
+                     | Some firstNonOperationalPos ->
+                        match line.[firstNonOperationalPos] with
+                        | '#' -> if firstNonOperationalPos + h - 1 >= line.Length
+                                 then 0
+                                 else if seq { firstNonOperationalPos..(firstNonOperationalPos + h - 1) } |> Seq.forall (fun i -> line.[i] <> '.') &&
+                                         (firstNonOperationalPos + h >= line.Length || line.[firstNonOperationalPos + h] <> '#')
+                                 then possibleArrangements2 line (firstNonOperationalPos + h + 1) t
+                                 else 0
+                        | '?' -> if firstNonOperationalPos + h - 1 >= line.Length
+                                 then 0
+                                 else let fromNextPos = possibleArrangements2 line (firstNonOperationalPos + 1) damagedGroups
+                                      if seq { firstNonOperationalPos..(firstNonOperationalPos + h - 1) } |> Seq.forall (fun i -> line.[i] <> '.') &&
+                                         (firstNonOperationalPos + h >= line.Length || line.[firstNonOperationalPos + h] <> '#')
+                                      then fromNextPos + (possibleArrangements2 line (firstNonOperationalPos + h + 1) t)
+                                      else fromNextPos
+                        | _ -> failwith "Invalid state"
+
+// let results = lines
+//               |> List.map possibleArrangements
 let results = lines
-              |> List.map possibleArrangements
+              |> List.map (fun l -> possibleArrangements2 l.line 0 l.damagedGroups)
 
 let result1 = results |> List.sum
 
@@ -78,6 +105,10 @@ let lines2 = lines
                 })
 
 let results2 = lines2
-               |> List.map possibleArrangements
+               |> List.map (fun l -> possibleArrangements2 l.line 0 l.damagedGroups)
 
 let result2 = results2 |> List.sum
+
+// ?#?#?#?#?#?#?#? 1,3,1,6 - 1 arrangement
+
+// let rs = lines |> List.map (fun l -> possibleArrangements2 l.line 0 l.damagedGroups)
