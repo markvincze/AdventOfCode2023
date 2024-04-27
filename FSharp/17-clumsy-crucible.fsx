@@ -32,7 +32,7 @@ let rec findSol opts bestSol =
 
         printfn "Items in filteredOpts2: %d" (List.length filteredOpts2)
 
-        let newOpts =
+        let newOptsPart1 =
             filteredOpts2
             |> List.collect (fun opt ->
                 let (x, y) = opt.nextPos
@@ -62,17 +62,47 @@ let rec findSol opts bestSol =
                     then yield { heatLoss = opt.heatLoss + pattern[x, y]; nextPos = (x - 1, y); direction = Left; moves = opt.moves + 1 }
                 ])
 
-        printfn "Items in newOpts: %d" (List.length newOpts)
+        let newOptsPart2 =
+            filteredOpts2
+            |> List.collect (fun opt ->
+                let (x, y) = opt.nextPos
+                [
+                    if y > 0 && (opt.direction = Left || opt.direction = Right) && opt.moves >= 4
+                    then yield { heatLoss = opt.heatLoss + pattern[x, y]; nextPos = (x, y - 1); direction = Up; moves = 1 }
 
-        let newSolutions = newOpts
-                           |> List.filter (fun o -> o.nextPos = (Array2D.length1 pattern - 1, Array2D.length2 pattern - 1))
+                    if y > 0 && opt.direction = Up && opt.moves < 10
+                    then yield { heatLoss = opt.heatLoss + pattern[x, y]; nextPos = (x, y - 1); direction = Up; moves = opt.moves + 1 }
+
+                    if x < (Array2D.length1 pattern - 1) && (opt.direction = Up || opt.direction = Down) && opt.moves >= 4
+                    then yield { heatLoss = opt.heatLoss + pattern[x, y]; nextPos = (x + 1, y); direction = Right; moves = 1 }
+
+                    if x < (Array2D.length1 pattern - 1) && opt.direction = Right && opt.moves < 10
+                    then yield { heatLoss = opt.heatLoss + pattern[x, y]; nextPos = (x + 1, y); direction = Right; moves = opt.moves + 1 }
+
+                    if y < (Array2D.length2 pattern - 1) && (opt.direction = Left || opt.direction = Right) && opt.moves >= 4
+                    then yield { heatLoss = opt.heatLoss + pattern[x, y]; nextPos = (x, y + 1); direction = Down; moves = 1 }
+
+                    if y < (Array2D.length2 pattern - 1) && opt.direction = Down && opt.moves < 10
+                    then yield { heatLoss = opt.heatLoss + pattern[x, y]; nextPos = (x, y + 1); direction = Down; moves = opt.moves + 1 }
+
+                    if x > 0 && (opt.direction = Up || opt.direction = Down) && opt.moves >= 4
+                    then yield { heatLoss = opt.heatLoss + pattern[x, y]; nextPos = (x - 1, y); direction = Left; moves = 1 }
+
+                    if x > 0 && opt.direction = Left && opt.moves < 10
+                    then yield { heatLoss = opt.heatLoss + pattern[x, y]; nextPos = (x - 1, y); direction = Left; moves = opt.moves + 1 }
+                ])
+
+        printfn "Items in newOpts: %d" (List.length newOptsPart2)
+
+        let newSolutions = newOptsPart2
+                           |> List.filter (fun o -> o.nextPos = (Array2D.length1 pattern - 1, Array2D.length2 pattern - 1) && o.moves >= 4)
                            |> List.map (fun o -> o.heatLoss + pattern[Array2D.length1 pattern - 1, Array2D.length2 pattern - 1])
 
         let newBestSol = if List.length newSolutions = 0
                          then bestSol
                          else min bestSol (List.min newSolutions)
 
-        findSol (newOpts |> List.filter (fun o -> o.heatLoss < newBestSol)) newBestSol
+        findSol (newOptsPart2 |> List.filter (fun o -> o.heatLoss < newBestSol)) newBestSol
 
 let result1 =
     findSol
