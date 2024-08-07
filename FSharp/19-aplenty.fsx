@@ -16,10 +16,14 @@ type Decision =
     | Accepted
     | Rejected
 
-type Rule = {
+type Condition = {
     property: char
     comparison: Comparison
     value: int
+}
+
+type Rule = {
+    condition: Condition
     decision: Decision
 }
 
@@ -37,9 +41,11 @@ let parseDecision = function
 let parseRule (rule : string) =
     let m = Regex.Match(rule, @"(\w+)([<>])(\d+):(\w+)")
     {
-        property = m.Groups[1].Value[0]
-        comparison = if m.Groups[2].Value = "<" then Smaller else Greater
-        value = m.Groups[3].Value |> Int32.Parse
+        condition = {
+            property = m.Groups[1].Value[0]
+            comparison = if m.Groups[2].Value = "<" then Smaller else Greater
+            value = m.Groups[3].Value |> Int32.Parse
+        }
         decision = parseDecision m.Groups[4].Value
     }
 
@@ -73,14 +79,14 @@ let runWorkflow workflow part =
     let rec runWorkflow rules fallback part =
         match rules with
         | [] -> fallback
-        | h :: t -> let propValue = match h.property with
+        | h :: t -> let propValue = match h.condition.property with
                                     | 'x' -> part.x
                                     | 'm' -> part.m
                                     | 'a' -> part.a
                                     | 's' -> part.s
-                    let isSatisfied = match h.comparison with
-                                      | Smaller -> propValue < h.value
-                                      | Greater -> propValue > h.value
+                    let isSatisfied = match h.condition.comparison with
+                                      | Smaller -> propValue < h.condition.value
+                                      | Greater -> propValue > h.condition.value
                     if isSatisfied
                     then h.decision
                     else runWorkflow t fallback part
@@ -100,3 +106,53 @@ let result1 = parts
               |> List.map (fun p -> p, evaluate workflows p)
               |> List.filter (fun (_, d) -> d = Accepted)
               |> List.sumBy (fun (p, _) -> p.x + p.m + p.a + p.s)
+
+// Part 2
+type Path = {
+    conditions: Condition list
+    decision: Decision
+}
+
+let invert = function
+             | { property = property; value = value; comparison = Smaller } -> { property = property; value = value - 1; comparison = Greater }
+             | { property = property; value = value; comparison = Greater } -> { property = property; value = value + 1; comparison = Smaller }
+
+let rec collectAllPaths workflows workflowName conditions =
+    let workflow = Map.find workflowName workflows
+
+    let rec collectPathsForWorkflow (rules : Rule list) fallback conditions acc =
+        match rules with
+        | [] -> List.append
+                    acc
+                    (match fallback with
+                     | Workflow wf -> collectAllPaths workflows wf conditions
+                     | decision -> [{ conditions =  conditions; decision = decision }])
+        | h :: t -> let acc = List.append
+                                  acc
+                                  (match h.decision with
+                                   | Workflow wf -> collectAllPaths workflows wf (h.condition :: conditions)
+                                   | decision -> [{ conditions = h.condition :: conditions; decision = decision }])
+                    collectPathsForWorkflow t fallback ((invert h.condition) :: conditions) acc
+
+    collectPathsForWorkflow workflow.rules workflow.fallback conditions []
+
+let paths = collectAllPaths workflows "in" []
+
+let legalCombinations conditions =
+    let rec legalRange conditions minValue maxValue =
+        match conditions with
+        | [] -> max (maxValue - minValue + 1L) 0L
+        | h :: t -> match h with 
+                    | { property = _; value = value; comparison = Smaller } -> legalRange t minValue (min maxValue ((int64 value) - 1L))
+                    | { property = _; value = value; comparison = Greater } -> legalRange t (max minValue ((int64 value) + 1L)) maxValue 
+    
+    let xRange = legalRange (conditions |> List.filter (fun c -> c.property = 'x')) 1 4000
+    let mRange = legalRange (conditions |> List.filter (fun c -> c.property = 'm')) 1 4000
+    let aRange = legalRange (conditions |> List.filter (fun c -> c.property = 'a')) 1 4000
+    let sRange = legalRange (conditions |> List.filter (fun c -> c.property = 's')) 1 4000
+
+    xRange * mRange * aRange * sRange
+
+let result2 = paths
+              |> List.filter (fun p -> p.decision = Accepted)
+              |> List.sumBy (fun p -> legalCombinations p.conditions)
